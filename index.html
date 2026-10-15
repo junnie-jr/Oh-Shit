@@ -57,9 +57,10 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
 .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--s1);color:var(--tx);border:1px solid var(--line);border-radius:18px}
 .leaflet-popup-content{margin:14px 16px;font-size:13px;line-height:1.5}
 .leaflet-container a.leaflet-popup-close-button{color:var(--mu)}
-.pin{background:var(--tx);color:#000;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);display:grid;place-items:center;font-weight:800;font-size:13px;border:2px solid #000;box-shadow:0 0 0 2px var(--tx)}
+.pin{background:var(--tx);color:#000;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);display:grid;place-items:center;font-weight:800;font-size:13px;border:2px solid #000;box-shadow:0 3px 10px #000c}
 .pin b{transform:rotate(45deg)}
-.fabs{position:absolute;right:14px;bottom:16px;z-index:1000;display:flex;flex-direction:column;gap:10px}
+.legend{position:absolute;left:12px;bottom:16px;z-index:1000;display:flex;gap:6px;align-items:center;background:rgba(13,13,13,.92);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:11px;color:var(--mu);font-weight:600}.legend i{width:14px;height:14px;border-radius:50%;display:inline-block}
+.fabs{position:absolute;right:14px;bottom:40px;z-index:1000;display:flex;flex-direction:column;gap:10px}
 .fabs .btn{box-shadow:0 6px 20px #000a}
 .fbar{position:absolute;top:10px;left:0;right:0;z-index:1000;display:flex;gap:8px;overflow-x:auto;padding:0 12px;scrollbar-width:none}.fbar::-webkit-scrollbar{display:none}.fbar .chip{flex:none;background:rgba(13,13,13,.92);backdrop-filter:blur(8px);color:var(--tx)}.fbar .chip.on{background:var(--tx);color:#000}.fbar .cnt{border-color:transparent;background:none;color:var(--mu);padding-left:4px}
 .banner{position:absolute;top:58px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--tx);color:#000;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:700;display:none;white-space:nowrap}
@@ -78,10 +79,11 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
   <div style="text-align:right"><div class="lbl">Pee today</div><div class="counter"><button class="btn round" id="pm">−</button><b id="pc">0</b><button class="btn round" id="pp">+</button></div></div></div>
   <div class="dots" id="dots"></div></div>
 
-  <div class="card"><div class="lbl">Log a #2</div>
+  <div class="card"><div class="chips" id="modeSeg" style="margin-bottom:18px"></div><div id="poopFields">
     <div class="lbl" style="margin-top:0">Colour</div><div class="chips" id="colors"></div><div class="sw-n" id="cn"></div>
     <div class="lbl" style="margin-top:20px">Quality</div><div class="q" id="qual"></div><div class="qh"><span>1 · hardest</span><span>5 · smoothest</span></div>
     <div class="lbl" style="margin-top:20px">Type</div><div class="chips" id="types"></div>
+    </div><div id="faFields" style="display:none"><div class="lbl" style="margin-top:0">What happened?</div><div class="chips" id="faR"></div><div class="lbl" style="margin-top:20px">How false was the alarm?</div><div class="q" id="faL"></div><div class="qh"><span>1 · almost something</span><span>5 · total nothing</span></div></div>
     <div class="lbl" style="margin-top:20px">Notes</div><textarea id="note" placeholder="Anything you ate, felt, noticed…"></textarea>
     <div class="row" style="margin-top:14px"><button class="btn grow" id="pinBtn">Pin my location</button><button class="btn pri grow" id="saveBtn">Save entry</button></div>
     <div class="fine" id="locNote"></div>
@@ -92,13 +94,14 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
 </section>
 
 <section class="view" id="v-hist">
-  <div class="card"><div class="lbl">Last 7 days</div><div class="row" id="stats"></div></div>
+  <div class="card"><div class="lbl">Summary</div><div class="chips" id="rng" style="margin-bottom:16px"></div><div class="row" id="stats"></div><div id="sumx"></div></div>
   <div class="card"><div class="lbl">History</div><div id="histList"></div></div>
 </section>
 
 <section class="view" id="v-spots">
   <div class="fbar" id="fbar"></div>
   <div class="banner" id="banner">Tap the map to drop a pin</div>
+  <div class="legend" id="legend"></div>
   <div id="map"></div>
   <div class="fabs"><button class="btn round" id="locBtn" title="My location">◎</button><button class="btn pri round" id="addBtn" title="Add CR">+</button></div>
 </section>
@@ -141,11 +144,25 @@ const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),1800)};
 const COLORS=[['brown','Brown','#7a4a2a'],['tan','Light brown','#b08968'],['green','Green','#4f7a3a'],['yellow','Yellow','#d4b02a'],['black','Black','#161616'],['red','Red','#b3261e'],['pale','Pale / clay','#e6e1d3']];
 const TYPES=['Normal','Airy / gassy','Mushy','Watery','Hard / lumpy','Oily / floaty'];
+const FA_R=['Strained, nothing came out','Urge, but nothing','Uneasy stomach','Just gas','Cramps only'];
+const isFA=l=>!!l.type&&l.type.startsWith('False alarm');
 const cHex=k=>(COLORS.find(c=>c[0]===k)||COLORS[0])[2],cName=k=>(COLORS.find(c=>c[0]===k)||COLORS[0])[1];
-let f={color:'brown',q:3,type:'Normal',loc:null};
+let f={color:'brown',q:3,type:'Normal',loc:null,mode:'poop',fa:{reason:FA_R[0],lvl:3}};
 
 /* ---------- feedback ---------- */
+function faFB(e){
+  const r=e.type.replace('False alarm: ',''),o=[],add=(l,t,b)=>o.push({l,t,b});
+  add('ok','False alarm logged','It happens. Not every urge means something is ready, and one false alarm on its own is nothing unusual.');
+  if(/Strained|Urge/.test(r))add('warn',"Don't push it",'Straining or sitting a long time can aggravate haemorrhoids and fissures. If nothing comes after a few minutes, get up and try later, ideally after a warm drink, a meal or some movement. A repeated urge with nothing to pass, especially with pain or blood, is worth mentioning to a doctor.');
+  if(r==='Uneasy stomach')add('ok','Uneasy stomach','Stomach unease without a bowel movement is common (stress, hunger, gas, something you ate). Water, a light meal and a short walk often help. See a doctor if it is severe, lasts more than a couple of days, or comes with fever, vomiting or blood.');
+  if(r==='Just gas')add('ok','Just gas','Gas can feel exactly like needing to go. Fizzy drinks, beans and swallowed air are common triggers.');
+  if(r==='Cramps only')add('warn','Cramps, no stool','Cramps with nothing passing can come from gas, constipation or something you ate. Severe or lasting pain deserves a doctor.');
+  const from=dk(new Date(Date.now()-6*864e5)),n=db.logs.filter(l=>isFA(l)&&l.date>=from&&l.id!==e.id).length+1;
+  if(n>=3)add('warn',n+' false alarms this week','Frequent urges with little result can go with constipation. More fluids and fibre help, and it is worth a doctor visit if it keeps up.');
+  return o;
+}
 function feedback(e){
+  if(isFA(e))return faFB(e);
   const o=[],add=(l,t,b)=>o.push({l,t,b});
   const C={
     brown:['ok','Typical colour','Brown comes from bile pigments breaking down as food moves through your gut. This is what we want to see.'],
@@ -167,27 +184,36 @@ function feedback(e){
 const fbHTML=a=>a.map(x=>`<div class="fb ${x.l==='ok'?'':x.l}"><b>${x.t}</b>${x.b}</div>`).join('');
 
 /* ---------- log ---------- */
-function streak(){const s=new Set(db.logs.map(l=>l.date));let d=new Date();if(!s.has(dk(d)))d.setDate(d.getDate()-1);let n=0;while(s.has(dk(d))){n++;d.setDate(d.getDate()-1)}return n}
+function streak(){const s=new Set(db.logs.filter(l=>!isFA(l)).map(l=>l.date));let d=new Date();if(!s.has(dk(d)))d.setDate(d.getDate()-1);let n=0;while(s.has(dk(d))){n++;d.setDate(d.getDate()-1)}return n}
 function renderTop(){
-  const n=streak(),t=dk(),done=db.logs.some(l=>l.date===t);
+  const n=streak(),t=dk(),done=db.logs.some(l=>l.date===t&&!isFA(l));
   $('#streak').textContent=n;$('#streakNote').textContent=done?(n>1?'days in a row. Keep going.':'Logged today.'):(n?'Log today to keep it alive.':'Log your first one.');
   $('#pc').textContent=db.pee[t]||0;
-  const s=new Set(db.logs.map(l=>l.date));let h='';
+  const s=new Set(db.logs.filter(l=>!isFA(l)).map(l=>l.date));let h='';
   for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);h+=`<div class="dot ${s.has(dk(d))?'f':''}"><i></i>${'SMTWTFS'[d.getDay()]}</div>`}
   $('#dots').innerHTML=h;
 }
-const entryRow=(l,del)=>`<div class="item"><div class="sw" style="background:${cHex(l.color)}"></div><div class="grow"><b>${cName(l.color)} · ${l.q}/5</b><small>${l.type} · ${new Date(l.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}${l.note?' · '+esc(l.note):''}${l.loc?` · <a href="https://www.openstreetmap.org/?mlat=${l.loc.lat}&mlon=${l.loc.lng}#map=18/${l.loc.lat}/${l.loc.lng}" target="_blank" rel="noopener">map</a>`:''}</small></div>${del?`<button class="btn sm danger" onclick="delLog('${l.id}')">✕</button>`:''}</div>`;
+const entryRow=(l,del)=>{const fa=isFA(l),sub=fa?esc(l.type.replace('False alarm: ','')):esc(l.type);return `<div class="item"><div class="sw" style="${fa?'background:transparent;border:2px dashed #666':'background:'+cHex(l.color)}"></div><div class="grow"><b>${fa?'False alarm · '+l.q+'/5':cName(l.color)+' · '+l.q+'/5'}</b><small>${sub} · ${new Date(l.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}${l.note?' · '+esc(l.note):''}${l.loc?` · <a href="https://www.openstreetmap.org/?mlat=${l.loc.lat}&mlon=${l.loc.lng}#map=18/${l.loc.lat}/${l.loc.lng}" target="_blank" rel="noopener">map</a>`:''}</small></div>${del?`<button class="btn sm danger" onclick="delLog('${l.id}')">✕</button>`:''}</div>`};
 function renderToday(){const L=db.logs.filter(l=>l.date===dk()).reverse();$('#todayList').innerHTML=L.length?L.map(l=>entryRow(l,1)).join(''):'<div class="empty">Nothing logged yet today.</div>'}
 async function delLog(id){const old=db.logs;db.logs=db.logs.filter(l=>l.id!==id);renderAll();const r=await sb.from('logs').delete().eq('id',id);if(r.error){db.logs=old;renderAll();toast('Could not delete')}}
 function buildForm(){
   $('#colors').innerHTML=COLORS.map(c=>`<button class="sw ${c[0]===f.color?'on':''}" data-c="${c[0]}" style="background:${c[2]}" aria-label="${c[1]}"></button>`).join('');
   $('#cn').textContent=cName(f.color);
+  const fa=f.mode==='fa';
+  $('#poopFields').style.display=fa?'none':'';$('#faFields').style.display=fa?'':'none';
+  $('#modeSeg').innerHTML=[['poop','#2'],['fa','False alarm']].map(([k,t])=>`<button class="chip ${f.mode===k?'on':''}" data-m="${k}">${t}</button>`).join('');
+  $('#faR').innerHTML=FA_R.map(r=>`<button class="chip ${r===f.fa.reason?'on':''}" data-r="${r}">${r}</button>`).join('');
+  $('#faL').innerHTML=[1,2,3,4,5].map(n=>`<button class="${n===f.fa.lvl?'on':''}" data-l="${n}">${n}</button>`).join('');
+  $('#saveBtn').textContent=fa?'Save false alarm':'Save entry';
   $('#qual').innerHTML=[1,2,3,4,5].map(n=>`<button class="${n===f.q?'on':''}" data-q="${n}">${n}</button>`).join('');
   $('#types').innerHTML=TYPES.map(t=>`<button class="chip ${t===f.type?'on':''}" data-t="${t}">${t}</button>`).join('');
 }
 $('#colors').onclick=e=>{const c=e.target.dataset.c;if(c){f.color=c;buildForm()}};
 $('#qual').onclick=e=>{const q=e.target.dataset.q;if(q){f.q=+q;buildForm()}};
 $('#types').onclick=e=>{const t=e.target.dataset.t;if(t){f.type=t;buildForm()}};
+$('#modeSeg').onclick=e=>{const m=e.target.dataset.m;if(m){f.mode=m;buildForm()}};
+$('#faR').onclick=e=>{const r=e.target.dataset.r;if(r){f.fa.reason=r;buildForm()}};
+$('#faL').onclick=e=>{const l=e.target.dataset.l;if(l){f.fa.lvl=+l;buildForm()}};
 $('#pinBtn').onclick=()=>{
   if(!navigator.geolocation)return toast('Location not supported');
   $('#locNote').textContent='Finding you…';
@@ -197,20 +223,36 @@ $('#pinBtn').onclick=()=>{
 };
 function nearest(p){let b=null,bd=60;db.spots.forEach(s=>{const d=map?map.distance([p.lat,p.lng],[s.lat,s.lng]):L.latLng(p.lat,p.lng).distanceTo([s.lat,s.lng]);if(d<bd){bd=d;b=s}});return b}
 $('#saveBtn').onclick=()=>{
-  const e={id:crypto.randomUUID(),date:dk(),ts:Date.now(),color:f.color,q:f.q,type:f.type,note:$('#note').value.trim(),loc:f.loc};
+  const fa=f.mode==='fa';
+  const e={id:crypto.randomUUID(),date:dk(),ts:Date.now(),color:fa?null:f.color,q:fa?f.fa.lvl:f.q,type:fa?'False alarm: '+f.fa.reason:f.type,note:$('#note').value.trim(),loc:f.loc};
   db.logs.push(e);pushLog(e);$('#fbNow').innerHTML=fbHTML(feedback(e));
   $('#note').value='';f.loc=null;$('#locNote').textContent='';$('#pinBtn').textContent='Pin my location';
-  renderAll();toast('Logged. Streak '+streak());
+  renderAll();toast(fa?'False alarm logged':'Logged. Streak '+streak());
 };
 $('#pp').onclick=()=>{const t=dk();db.pee[t]=(db.pee[t]||0)+1;savePee(t);renderTop()};
 $('#pm').onclick=()=>{const t=dk();db.pee[t]=Math.max(0,(db.pee[t]||0)-1);savePee(t);renderTop()};
 
 /* ---------- history ---------- */
+const RNG=[[1,'24h'],[3,'3 days'],[7,'7 days'],[15,'15 days'],[30,'30 days']];
+let range=7;try{range=+localStorage.getItem('ohshit.range')||7}catch(e){}
+$('#rng').onclick=e=>{const d=e.target.dataset.d;if(d){range=+d;try{localStorage.setItem('ohshit.range',d)}catch(_){}renderHist()}};
 function renderHist(){
-  const from=dk(new Date(Date.now()-6*864e5)),w=db.logs.filter(l=>l.date>=from);
-  const avg=w.length?(w.reduce((a,l)=>a+l.q,0)/w.length).toFixed(1):'–';
+  $('#rng').innerHTML=RNG.map(([d,t])=>`<button class="chip ${d===range?'on':''}" data-d="${d}">${t}</button>`).join('');
+  const since=Date.now()-range*864e5,from=dk(new Date(Date.now()-(range-1)*864e5));
+  const w=db.logs.filter(l=>l.ts>=since),poo=w.filter(l=>!isFA(l)),fa=w.filter(isFA);
+  const avg=poo.length?(poo.reduce((a,l)=>a+l.q,0)/poo.length).toFixed(1):'–';
   const pee=Object.entries(db.pee).filter(([d])=>d>=from).reduce((a,[,n])=>a+n,0);
-  $('#stats').innerHTML=[['#2s',w.length],['Avg quality',avg],['Pees',pee]].map(([k,v])=>`<div class="grow"><div class="big" style="font-size:34px">${v}</div><div class="date">${k}</div></div>`).join('');
+  $('#stats').innerHTML=[['#2s',poo.length],['Avg quality',avg],['Pees',pee],['False alarms',fa.length]].map(([k,v])=>`<div class="grow"><div class="big" style="font-size:34px">${v}</div><div class="date">${k}</div></div>`).join('');
+  const top=a=>{const c={};a.forEach(x=>c[x]=(c[x]||0)+1);return Object.keys(c).sort((x,y)=>c[y]-c[x])[0]};
+  let h='';
+  if(poo.length)h+=`<div class="fine" style="margin-top:14px">Most common: ${cName(top(poo.map(l=>l.color)))} · ${esc(top(poo.map(l=>l.type)))} · about ${(poo.length/range).toFixed(1)} per day</div>`;
+  if(fa.length)h+=`<div class="fine">False alarms: ${fa.length}, averaging ${(fa.reduce((a,l)=>a+l.q,0)/fa.length).toFixed(1)}/5 on the "how false" scale</div>`;
+  if(!w.length&&!pee)h+='<div class="fine" style="margin-top:14px">Nothing logged in this period.</div>';
+  const n=[],bad=poo.filter(l=>['red','black','pale'].includes(l.color)).length;
+  if(bad)n.push({l:'bad',t:'Concerning colours',b:`${bad} stool${bad>1?'s':''} in this period ${bad>1?'were':'was'} red, black or pale. If food, iron or bismuth doesn't explain it, please get checked.`});
+  if(poo.length>=2&&+avg<=2.4)n.push({l:'warn',t:'Leaning hard',b:'Mostly hard stools in this period. More fluids, fibre and movement usually help.'});
+  if(poo.length>=3&&+avg>=4.6)n.push({l:'warn',t:'Leaning very loose',b:'Mostly very loose stools. Stay hydrated, and see a doctor if it continues more than 2 days or comes with blood, fever or dehydration.'});
+  $('#sumx').innerHTML=h+fbHTML(n);
   const by={};db.logs.slice().reverse().forEach(l=>(by[l.date]=by[l.date]||[]).push(l));
   const keys=Object.keys(by);
   $('#histList').innerHTML=keys.length?keys.map(k=>`<div class="lbl" style="margin:16px 0 0">${new Date(k+'T00:00').toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'})}</div>`+by[k].map(l=>entryRow(l,1)).join('')).join(''):'<div class="empty">No entries yet.</div>';
@@ -218,6 +260,8 @@ function renderHist(){
 
 /* ---------- CR map ---------- */
 const AM=['Bidet','Tissue','Water','Soap','Hand dryer','Free','Clean','Private stall','PWD accessible','Needs purchase'];
+const RC={1:'#e5484d',2:'#f2853b',3:'#f5c542',4:'#9ad84a',5:'#2fcf6f'};
+$('#legend').innerHTML='<span>meh</span>'+[1,2,3,4,5].map(n=>`<i style="background:${RC[n]}"></i>`).join('')+'<span>haven</span>';
 let map,layer,adding=false,cur=null,filt={min:0,am:[]};
 const visible=()=>db.spots.filter(s=>s.rating>=filt.min&&filt.am.every(a=>s.am.includes(a)));
 function renderFilters(){
@@ -245,8 +289,8 @@ function drawSpots(){
   layer.clearLayers();
   renderFilters();
   visible().forEach(s=>{
-    const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:30px;height:30px"><b>${s.rating}</b></div>`,iconSize:[30,30],iconAnchor:[15,30]})});
-    m.bindPopup(`<b style="font-size:15px">${esc(s.name)}</b><br>${'★'.repeat(s.rating)}${'☆'.repeat(5-s.rating)}<div class="chips" style="gap:5px;margin:8px 0">${s.am.map(a=>`<span class="chip on" style="padding:3px 9px;font-size:11px">${a}</span>`).join('')}</div>${s.note?`<div style="color:#ccc">${esc(s.note)}</div>`:''}<div class="row" style="margin-top:10px">${canEdit(s)?`<button class="btn sm" onclick="openSheet('${s.id}')">Edit</button>`:''}<a class="btn sm" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}">Directions</a></div>`).addTo(layer);
+    const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:32px;height:32px;background:${RC[s.rating]||RC[3]}"><b>${s.rating}</b></div>`,iconSize:[32,32],iconAnchor:[16,32]})});
+    m.bindPopup(`<b style="font-size:15px">${esc(s.name)}</b><br><span style="color:${RC[s.rating]}">${'★'.repeat(s.rating)}${'☆'.repeat(5-s.rating)}</span><div class="chips" style="gap:5px;margin:8px 0">${s.am.map(a=>`<span class="chip on" style="padding:3px 9px;font-size:11px">${a}</span>`).join('')}</div>${s.note?`<div style="color:#ccc">${esc(s.note)}</div>`:''}<div class="row" style="margin-top:10px">${canEdit(s)?`<button class="btn sm" onclick="openSheet('${s.id}')">Edit</button>`:''}<a class="btn sm" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}">Directions</a></div>`).addTo(layer);
   });
 }
 function locate(quiet){
@@ -259,7 +303,7 @@ $('#s-rate').innerHTML=[1,2,3,4,5].map(n=>`<button data-r="${n}">${n}</button>`)
 $('#s-am').innerHTML=AM.map(a=>`<button class="chip" data-a="${a}">${a}</button>`).join('');
 $('#s-rate').onclick=e=>{const r=e.target.dataset.r;if(r){cur.rating=+r;paintSheet()}};
 $('#s-am').onclick=e=>{const a=e.target.dataset.a;if(a){const i=cur.am.indexOf(a);i<0?cur.am.push(a):cur.am.splice(i,1);paintSheet()}};
-function paintSheet(){$$('#s-rate button').forEach(b=>b.classList.toggle('on',+b.dataset.r===cur.rating));$$('#s-am .chip').forEach(b=>b.classList.toggle('on',cur.am.includes(b.dataset.a)))}
+function paintSheet(){$$('#s-rate button').forEach(b=>{const on=+b.dataset.r===cur.rating;b.classList.toggle('on',on);b.style.background=on?RC[b.dataset.r]:'';b.style.color=on?'#000':''});$$('#s-am .chip').forEach(b=>b.classList.toggle('on',cur.am.includes(b.dataset.a)))}
 function openSheet(id,ll){
   map.closePopup();
   cur=id?JSON.parse(JSON.stringify(db.spots.find(s=>s.id===id))):{id:crypto.randomUUID(),created_by:user&&user.id,name:'',rating:3,am:[],note:'',lat:ll.lat,lng:ll.lng};
