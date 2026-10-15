@@ -61,7 +61,8 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
 .pin b{transform:rotate(45deg)}
 .fabs{position:absolute;right:14px;bottom:16px;z-index:1000;display:flex;flex-direction:column;gap:10px}
 .fabs .btn{box-shadow:0 6px 20px #000a}
-.banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--tx);color:#000;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:700;display:none;white-space:nowrap}
+.fbar{position:absolute;top:10px;left:0;right:0;z-index:1000;display:flex;gap:8px;overflow-x:auto;padding:0 12px;scrollbar-width:none}.fbar::-webkit-scrollbar{display:none}.fbar .chip{flex:none;background:rgba(13,13,13,.92);backdrop-filter:blur(8px);color:var(--tx)}.fbar .chip.on{background:var(--tx);color:#000}.fbar .cnt{border-color:transparent;background:none;color:var(--mu);padding-left:4px}
+.banner{position:absolute;top:58px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--tx);color:#000;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:700;display:none;white-space:nowrap}
 .sheet{position:fixed;inset:0;z-index:3000;background:#000a;display:none;align-items:flex-end}.sheet.on{display:flex}
 .sheet>div{width:100%;max-height:88dvh;overflow:auto;background:var(--s1);border-top:1px solid var(--line);border-radius:26px 26px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
 .sheet h2{font-size:18px;margin-bottom:14px}.sheet .lbl{margin-top:16px}
@@ -95,6 +96,7 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
 </section>
 
 <section class="view" id="v-spots">
+  <div class="fbar" id="fbar"></div>
   <div class="banner" id="banner">Tap the map to drop a pin</div>
   <div id="map"></div>
   <div class="fabs"><button class="btn round" id="locBtn" title="My location">◎</button><button class="btn pri round" id="addBtn" title="Add CR">+</button></div>
@@ -204,7 +206,21 @@ function renderHist(){
 
 /* ---------- CR map ---------- */
 const AM=['Bidet','Tissue','Water','Soap','Hand dryer','Free','Clean','Private stall','PWD accessible','Needs purchase'];
-let map,layer,adding=false,cur=null;
+let map,layer,adding=false,cur=null,filt={min:0,am:[]};
+const visible=()=>db.spots.filter(s=>s.rating>=filt.min&&filt.am.every(a=>s.am.includes(a)));
+function renderFilters(){
+  const on=filt.min||filt.am.length;
+  $('#fbar').innerHTML=`<span class="chip cnt">${visible().length}/${db.spots.length}</span>`+(on?'<button class="chip" data-x="1">Clear ✕</button>':'')+`<button class="chip ${filt.min?'on':''}" data-r="1">★ 4+</button>`+AM.map(a=>`<button class="chip ${filt.am.includes(a)?'on':''}" data-a="${a}">${a}</button>`).join('');
+}
+$('#fbar').onclick=e=>{
+  const d=e.target.dataset;
+  if(d.x){filt={min:0,am:[]}}
+  else if(d.r){filt.min=filt.min?0:4}
+  else if(d.a){const i=filt.am.indexOf(d.a);i<0?filt.am.push(d.a):filt.am.splice(i,1)}
+  else return;
+  drawSpots();
+  if(db.spots.length&&!visible().length)toast('No CRs match these filters');
+};
 function initMap(){
   if(map)return;
   map=L.map('map',{zoomControl:false,attributionControl:true}).setView([14.676,121.0437],15);
@@ -215,7 +231,8 @@ function initMap(){
 }
 function drawSpots(){
   layer.clearLayers();
-  db.spots.forEach(s=>{
+  renderFilters();
+  visible().forEach(s=>{
     const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:30px;height:30px"><b>${s.rating}</b></div>`,iconSize:[30,30],iconAnchor:[15,30]})});
     m.bindPopup(`<b style="font-size:15px">${esc(s.name)}</b><br>${'★'.repeat(s.rating)}${'☆'.repeat(5-s.rating)}<div class="chips" style="gap:5px;margin:8px 0">${s.am.map(a=>`<span class="chip on" style="padding:3px 9px;font-size:11px">${a}</span>`).join('')}</div>${s.note?`<div style="color:#ccc">${esc(s.note)}</div>`:''}<div class="row" style="margin-top:10px"><button class="btn sm" onclick="openSheet('${s.id}')">Edit</button><a class="btn sm" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}">Directions</a></div>`).addTo(layer);
   });
