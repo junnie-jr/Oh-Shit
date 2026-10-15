@@ -67,10 +67,11 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
 .sheet>div{width:100%;max-height:88dvh;overflow:auto;background:var(--s1);border-top:1px solid var(--line);border-radius:26px 26px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
 .sheet h2{font-size:18px;margin-bottom:14px}.sheet .lbl{margin-top:16px}
 .empty{color:var(--mu);font-size:14px;text-align:center;padding:20px 0}
+#auth{position:fixed;inset:0;z-index:6000;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--tx);color:#000;padding:10px 16px;border-radius:999px;font-weight:700;font-size:13px;z-index:4000;opacity:0;transition:.25s;pointer-events:none}.toast.on{opacity:1}
 </style></head>
 <body>
-<header><h1>Oh! <span>Shit</span></h1><div class="date" id="today"></div></header>
+<header><h1>Oh! <span>Shit</span></h1><div class="row"><div class="date" id="today"></div><button class="btn sm" id="acct" style="border-radius:999px;min-width:38px">…</button></div></header>
 
 <section class="view on" id="v-log">
   <div class="card"><div class="row"><div class="grow"><div class="lbl">Streak</div><div class="big" id="streak">0</div><div class="date" id="streakNote"></div></div>
@@ -116,14 +117,22 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
   <div class="lbl">Notes</div><textarea id="s-note" placeholder="2nd floor bathroom is better…"></textarea>
   <div class="row" style="margin-top:16px"><button class="btn" id="s-cancel">Cancel</button><button class="btn danger" id="s-del" style="display:none">Delete</button><button class="btn pri grow" id="s-save">Save</button></div>
 </div></div>
+<div class="sheet" id="acctSheet"><div><h2 id="a-name">Account</h2><p class="date" id="a-sub" style="margin-bottom:16px;line-height:1.5"></p>
+  <button class="btn pri" id="a-link" style="width:100%;margin-bottom:10px">Sign in with Google to keep my data</button>
+  <div class="row"><button class="btn grow" id="a-out">Sign out</button><button class="btn grow" id="a-close">Close</button></div></div></div>
+<div id="auth"><h1 style="font-size:44px">Oh! <span>Shit</span></h1><p class="date" style="margin:10px 0 36px">Track it. Find a throne.</p>
+  <button class="btn pri" id="gBtn" style="width:100%;max-width:320px;padding:15px">Continue with Google</button>
+  <button class="btn" id="guestBtn" style="width:100%;max-width:320px;padding:15px;margin-top:10px">Continue as guest</button>
+  <p class="fine" style="max-width:320px;text-align:center">Guests can browse the CR map and keep a private log, but can't add CRs. Guest data is tied to this browser.</p></div>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.1/dist/umd/supabase.js"></script>
 <script>
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const KEY='ohshit.v1';let db={logs:[],pee:{},spots:[]};
-try{db=Object.assign(db,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}};
+let localDB=null;try{localDB=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
+const save=()=>{};
 const dk=d=>{d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),1800)};
@@ -166,7 +175,7 @@ function renderTop(){
 }
 const entryRow=(l,del)=>`<div class="item"><div class="sw" style="background:${cHex(l.color)}"></div><div class="grow"><b>${cName(l.color)} · ${l.q}/5</b><small>${l.type} · ${new Date(l.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}${l.note?' · '+esc(l.note):''}${l.loc?` · <a href="https://www.openstreetmap.org/?mlat=${l.loc.lat}&mlon=${l.loc.lng}#map=18/${l.loc.lat}/${l.loc.lng}" target="_blank" rel="noopener">map</a>`:''}</small></div>${del?`<button class="btn sm danger" onclick="delLog('${l.id}')">✕</button>`:''}</div>`;
 function renderToday(){const L=db.logs.filter(l=>l.date===dk()).reverse();$('#todayList').innerHTML=L.length?L.map(l=>entryRow(l,1)).join(''):'<div class="empty">Nothing logged yet today.</div>'}
-function delLog(id){db.logs=db.logs.filter(l=>l.id!==id);save();renderAll()}
+async function delLog(id){const old=db.logs;db.logs=db.logs.filter(l=>l.id!==id);renderAll();const r=await sb.from('logs').delete().eq('id',id);if(r.error){db.logs=old;renderAll();toast('Could not delete')}}
 function buildForm(){
   $('#colors').innerHTML=COLORS.map(c=>`<button class="sw ${c[0]===f.color?'on':''}" data-c="${c[0]}" style="background:${c[2]}" aria-label="${c[1]}"></button>`).join('');
   $('#cn').textContent=cName(f.color);
@@ -185,13 +194,13 @@ $('#pinBtn').onclick=()=>{
 };
 function nearest(p){let b=null,bd=60;db.spots.forEach(s=>{const d=map?map.distance([p.lat,p.lng],[s.lat,s.lng]):L.latLng(p.lat,p.lng).distanceTo([s.lat,s.lng]);if(d<bd){bd=d;b=s}});return b}
 $('#saveBtn').onclick=()=>{
-  const e={id:'l'+Date.now(),date:dk(),ts:Date.now(),color:f.color,q:f.q,type:f.type,note:$('#note').value.trim(),loc:f.loc};
-  db.logs.push(e);save();$('#fbNow').innerHTML=fbHTML(feedback(e));
+  const e={id:crypto.randomUUID(),date:dk(),ts:Date.now(),color:f.color,q:f.q,type:f.type,note:$('#note').value.trim(),loc:f.loc};
+  db.logs.push(e);pushLog(e);$('#fbNow').innerHTML=fbHTML(feedback(e));
   $('#note').value='';f.loc=null;$('#locNote').textContent='';$('#pinBtn').textContent='Pin my location';
   renderAll();toast('Logged. Streak '+streak());
 };
-$('#pp').onclick=()=>{const t=dk();db.pee[t]=(db.pee[t]||0)+1;save();renderTop()};
-$('#pm').onclick=()=>{const t=dk();db.pee[t]=Math.max(0,(db.pee[t]||0)-1);save();renderTop()};
+$('#pp').onclick=()=>{const t=dk();db.pee[t]=(db.pee[t]||0)+1;savePee(t);renderTop()};
+$('#pm').onclick=()=>{const t=dk();db.pee[t]=Math.max(0,(db.pee[t]||0)-1);savePee(t);renderTop()};
 
 /* ---------- history ---------- */
 function renderHist(){
@@ -234,7 +243,7 @@ function drawSpots(){
   renderFilters();
   visible().forEach(s=>{
     const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:30px;height:30px"><b>${s.rating}</b></div>`,iconSize:[30,30],iconAnchor:[15,30]})});
-    m.bindPopup(`<b style="font-size:15px">${esc(s.name)}</b><br>${'★'.repeat(s.rating)}${'☆'.repeat(5-s.rating)}<div class="chips" style="gap:5px;margin:8px 0">${s.am.map(a=>`<span class="chip on" style="padding:3px 9px;font-size:11px">${a}</span>`).join('')}</div>${s.note?`<div style="color:#ccc">${esc(s.note)}</div>`:''}<div class="row" style="margin-top:10px"><button class="btn sm" onclick="openSheet('${s.id}')">Edit</button><a class="btn sm" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}">Directions</a></div>`).addTo(layer);
+    m.bindPopup(`<b style="font-size:15px">${esc(s.name)}</b><br>${'★'.repeat(s.rating)}${'☆'.repeat(5-s.rating)}<div class="chips" style="gap:5px;margin:8px 0">${s.am.map(a=>`<span class="chip on" style="padding:3px 9px;font-size:11px">${a}</span>`).join('')}</div>${s.note?`<div style="color:#ccc">${esc(s.note)}</div>`:''}<div class="row" style="margin-top:10px">${canEdit(s)?`<button class="btn sm" onclick="openSheet('${s.id}')">Edit</button>`:''}<a class="btn sm" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}">Directions</a></div>`).addTo(layer);
   });
 }
 function locate(quiet){
@@ -242,7 +251,7 @@ function locate(quiet){
 }
 function setAdding(v){adding=v;$('#banner').style.display=v?'block':'none';$('#addBtn').textContent=v?'×':'+'}
 $('#locBtn').onclick=()=>locate();
-$('#addBtn').onclick=()=>setAdding(!adding);
+$('#addBtn').onclick=()=>{if(!canAdd()){toast('Sign in with Google to add CRs');openAcct();return}setAdding(!adding)};
 $('#s-rate').innerHTML=[1,2,3,4,5].map(n=>`<button data-r="${n}">${n}</button>`).join('');
 $('#s-am').innerHTML=AM.map(a=>`<button class="chip" data-a="${a}">${a}</button>`).join('');
 $('#s-rate').onclick=e=>{const r=e.target.dataset.r;if(r){cur.rating=+r;paintSheet()}};
@@ -250,7 +259,7 @@ $('#s-am').onclick=e=>{const a=e.target.dataset.a;if(a){const i=cur.am.indexOf(a
 function paintSheet(){$$('#s-rate button').forEach(b=>b.classList.toggle('on',+b.dataset.r===cur.rating));$$('#s-am .chip').forEach(b=>b.classList.toggle('on',cur.am.includes(b.dataset.a)))}
 function openSheet(id,ll){
   map.closePopup();
-  cur=id?JSON.parse(JSON.stringify(db.spots.find(s=>s.id===id))):{id:'s'+Date.now(),name:'',rating:3,am:[],note:'',lat:ll.lat,lng:ll.lng};
+  cur=id?JSON.parse(JSON.stringify(db.spots.find(s=>s.id===id))):{id:crypto.randomUUID(),created_by:user&&user.id,name:'',rating:3,am:[],note:'',lat:ll.lat,lng:ll.lng};
   $('#sh-title').textContent=id?'Edit CR':'Add CR';$('#s-name').value=cur.name;$('#s-note').value=cur.note;
   $('#s-del').style.display=id?'':'none';paintSheet();$('#sheet').classList.add('on');
 }
@@ -259,9 +268,9 @@ $('#s-cancel').onclick=closeSheet;
 $('#s-save').onclick=()=>{
   cur.name=$('#s-name').value.trim()||'Unnamed CR';cur.note=$('#s-note').value.trim();
   const i=db.spots.findIndex(s=>s.id===cur.id);i<0?db.spots.push(cur):db.spots[i]=cur;
-  save();drawSpots();closeSheet();toast('CR saved');
+  pushSpot(cur,i<0);drawSpots();closeSheet();toast('CR saved');
 };
-$('#s-del').onclick=()=>{db.spots=db.spots.filter(s=>s.id!==cur.id);save();drawSpots();closeSheet()};
+$('#s-del').onclick=()=>{const id=cur.id;db.spots=db.spots.filter(s=>s.id!==id);drawSpots();closeSheet();sb.from('spots').delete().eq('id',id).then(r=>r.error&&toast('Delete failed'))};
 
 /* ---------- nav ---------- */
 $$('nav button').forEach(b=>b.onclick=()=>{
@@ -272,7 +281,87 @@ $$('nav button').forEach(b=>b.onclick=()=>{
 });
 function renderAll(){renderTop();renderToday();renderHist()}
 $('#today').textContent=new Date().toLocaleDateString([],{weekday:'long',month:'short',day:'numeric'});
-buildForm();renderAll();
+/* ---------- cloud (Supabase) ---------- */
+const SB_URL='https://oqbbgulkdzepfczshiaa.supabase.co',SB_KEY='sb_publishable_nW6CSNho-KC59P-645K3fQ_yB-Bm9-O';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+let user=null,rt=null;
+const redirect=location.origin+location.pathname;
+const canAdd=()=>!!user&&!user.is_anonymous;
+const canEdit=s=>canAdd()&&s.created_by===user.id;
+const spotIn=r=>({id:r.id,name:r.name,lat:r.lat,lng:r.lng,rating:r.rating,am:r.amenities||[],note:r.note||'',created_by:r.created_by});
+const spotOut=s=>({id:s.id,name:s.name,lat:s.lat,lng:s.lng,rating:s.rating,amenities:s.am,note:s.note});
+const logOut=e=>({id:e.id,day:e.date,ts:new Date(e.ts).toISOString(),color:e.color,quality:e.q,type:e.type,note:e.note,lat:e.loc?e.loc.lat:null,lng:e.loc?e.loc.lng:null});
+const fail=(r,m)=>{if(r&&r.error){console.error(r.error);toast(m||'Sync failed');return true}return false};
+async function pushLog(e){fail(await sb.from('logs').insert(logOut(e)),'Could not sync entry')}
+async function savePee(d){fail(await sb.from('pee').upsert({user_id:user.id,day:d,count:db.pee[d]||0},{onConflict:'user_id,day'}),'Could not sync')}
+async function pushSpot(s,isNew){
+  const r=isNew?await sb.from('spots').insert(spotOut(s)):await sb.from('spots').update(spotOut(s)).eq('id',s.id);
+  if(fail(r,'Could not save CR')){await pullSpots();if(map)drawSpots()}
+}
+async function pullSpots(){const r=await sb.from('spots').select('*');if(!r.error)db.spots=r.data.map(spotIn)}
+async function pullMine(){
+  const [l,p]=await Promise.all([sb.from('logs').select('*').order('ts'),sb.from('pee').select('*')]);
+  if(l.error||p.error){toast('Could not load your data');return}
+  db.logs=l.data.map(r=>({id:r.id,date:r.day,ts:new Date(r.ts).getTime(),color:r.color,q:r.quality,type:r.type,note:r.note||'',loc:r.lat!=null?{lat:r.lat,lng:r.lng}:null}));
+  db.pee={};p.data.forEach(r=>db.pee[r.day]=r.count);
+}
+function listen(){
+  if(rt)sb.removeChannel(rt);
+  let t;const again=()=>{clearTimeout(t);t=setTimeout(async()=>{await pullMine();renderAll()},400)};
+  rt=sb.channel('live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'spots'},p=>{
+      const id=(p.new&&p.new.id)||(p.old&&p.old.id);
+      db.spots=db.spots.filter(s=>s.id!==id);
+      if(p.eventType!=='DELETE')db.spots.push(spotIn(p.new));
+      if(map)drawSpots();})
+    .on('postgres_changes',{event:'*',schema:'public',table:'logs'},again)
+    .on('postgres_changes',{event:'*',schema:'public',table:'pee'},again)
+    .subscribe();
+}
+function updateAcct(){
+  if(!user)return;
+  const g=user.is_anonymous,m=user.user_metadata||{},n=g?'Guest':(m.full_name||m.name||user.email||'You');
+  $('#acct').textContent=g?'Guest':n.trim()[0].toUpperCase();
+  $('#a-name').textContent=n;
+  $('#a-sub').textContent=g?'Your data lives only in this browser. Sign in with Google to keep it safe and to add CRs.':(user.email||'');
+  $('#a-link').style.display=g?'':'none';
+}
+const openAcct=()=>$('#acctSheet').classList.add('on');
+$('#acct').onclick=openAcct;
+$('#a-close').onclick=()=>$('#acctSheet').classList.remove('on');
+$('#a-link').onclick=async()=>{const r=await sb.auth.linkIdentity({provider:'google',options:{redirectTo:redirect}});if(r.error)toast(r.error.message.slice(0,90))};
+$('#a-out').onclick=async()=>{if(user.is_anonymous&&!confirm('Guest data is lost if you sign out. Continue?'))return;await sb.auth.signOut();$('#acctSheet').classList.remove('on')};
+$('#gBtn').onclick=async()=>{const r=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:redirect}});fail(r,'Google sign-in failed')};
+$('#guestBtn').onclick=async()=>{fail(await sb.auth.signInAnonymously(),'Guest sign-in failed')};
+function offerMigrate(){
+  if(!localDB||localStorage.getItem('ohshit.declined'))return;
+  const L=localDB.logs||[],P=Object.entries(localDB.pee||{}),S=localDB.spots||[],cs=canAdd();
+  if(!L.length&&!P.length&&!(cs&&S.length))return;
+  if(!confirm(`Upload the ${L.length} entries${cs&&S.length?' and '+S.length+' CRs':''} saved on this phone to your account?`)){localStorage.setItem('ohshit.declined','1');return}
+  (async()=>{
+    L.forEach(e=>e.id=crypto.randomUUID());
+    if(L.length)await sb.from('logs').insert(L.map(logOut));
+    if(P.length)await sb.from('pee').upsert(P.map(([d,c])=>({user_id:user.id,day:d,count:c})),{onConflict:'user_id,day'});
+    if(cs&&S.length){S.forEach(x=>x.id=crypto.randomUUID());await sb.from('spots').insert(S.map(spotOut))}
+    try{if(!cs&&S.length)localStorage.setItem(KEY,JSON.stringify({logs:[],pee:{},spots:S}));else localStorage.removeItem(KEY)}catch(e){}
+    localDB=null;await Promise.all([pullMine(),pullSpots()]);renderAll();if(map)drawSpots();toast('Local data uploaded');
+  })();
+}
+async function start(u){
+  user=u;$('#auth').style.display='none';updateAcct();
+  await Promise.all([pullMine(),pullSpots()]);
+  renderAll();if(map)drawSpots();listen();offerMigrate();
+}
+async function boot(){
+  const {data}=await sb.auth.getSession();
+  if(data.session)await start(data.session.user);else $('#auth').style.display='flex';
+  sb.auth.onAuthStateChange((ev,ses)=>{
+    if(ev==='SIGNED_OUT'){user=null;db={logs:[],pee:{},spots:[]};if(rt){sb.removeChannel(rt);rt=null}renderAll();if(map)drawSpots();$('#auth').style.display='flex'}
+    else if(ses&&(!user||user.id!==ses.user.id))setTimeout(()=>start(ses.user),0);
+    else if(ses){user=ses.user;updateAcct()}
+  });
+}
+buildForm();renderAll();boot();
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body></html>
