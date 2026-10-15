@@ -123,6 +123,7 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
 <div id="auth"><h1 style="font-size:44px">Oh! <span>Shit</span></h1><p class="date" style="margin:10px 0 36px">Track it. Find a throne.</p>
   <button class="btn pri" id="gBtn" style="width:100%;max-width:320px;padding:15px">Continue with Google</button>
   <button class="btn" id="guestBtn" style="width:100%;max-width:320px;padding:15px;margin-top:10px">Continue as guest</button>
+  <p id="authErr" class="fine" style="max-width:320px;text-align:center;color:var(--bad)"></p>
   <p class="fine" style="max-width:320px;text-align:center">Guests can browse the CR map and keep a private log, but can't add CRs. Guest data is tied to this browser.</p></div>
 <div class="toast" id="toast"></div>
 
@@ -283,7 +284,8 @@ function renderAll(){renderTop();renderToday();renderHist()}
 $('#today').textContent=new Date().toLocaleDateString([],{weekday:'long',month:'short',day:'numeric'});
 /* ---------- cloud (Supabase) ---------- */
 const SB_URL='https://oqbbgulkdzepfczshiaa.supabase.co',SB_KEY='sb_publishable_nW6CSNho-KC59P-645K3fQ_yB-Bm9-O';
-const sb=supabase.createClient(SB_URL,SB_KEY);
+const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{flowType:'pkce',detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}});
+(function(){const q=new URLSearchParams(location.search+'&'+location.hash.replace(/^#/,''));const m=q.get('error_description')||q.get('error');if(m){window.__authErr=m;history.replaceState(null,'',location.pathname)}})();
 let user=null,rt=null;
 const redirect=location.origin+location.pathname;
 const canAdd=()=>!!user&&!user.is_anonymous;
@@ -354,7 +356,7 @@ async function start(u){
 }
 async function boot(){
   const {data}=await sb.auth.getSession();
-  if(data.session)await start(data.session.user);else $('#auth').style.display='flex';
+  if(data.session)await start(data.session.user);else{$('#auth').style.display='flex';if(window.__authErr)$('#authErr').textContent='Sign-in problem: '+window.__authErr}
   sb.auth.onAuthStateChange((ev,ses)=>{
     if(ev==='SIGNED_OUT'){user=null;db={logs:[],pee:{},spots:[]};if(rt){sb.removeChannel(rt);rt=null}renderAll();if(map)drawSpots();$('#auth').style.display='flex'}
     else if(ses&&(!user||user.id!==ses.user.id))setTimeout(()=>start(ses.user),0);
