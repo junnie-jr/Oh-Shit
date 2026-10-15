@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Oh! Shit</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--bg:#000;--s1:#0d0d0d;--s2:#161616;--line:#222;--tx:#f5f5f5;--mu:#8a8a8a;--ok:#7bd88f;--warn:#f2c14e;--bad:#ff5d5d;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+header{padding:18px 20px 8px;display:flex;justify-content:space-between;align-items:baseline}
+h1{font-size:22px;font-weight:800;letter-spacing:-.03em}h1 span{color:var(--mu);font-weight:500}
+.date{color:var(--mu);font-size:13px}
+.view{display:none;flex:1;overflow:auto;padding:8px 16px 24px}.view.on{display:block}
+#v-spots.on{display:flex;flex-direction:column;padding:0;position:relative}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:12px}
+.lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mu);margin-bottom:12px;font-weight:600}
+.row{display:flex;gap:10px;align-items:center}.grow{flex:1}
+.big{font-size:64px;font-weight:800;letter-spacing:-.05em;line-height:1}
+.dots{display:flex;gap:8px;margin-top:16px}
+.dot{flex:1;text-align:center;font-size:10px;color:var(--mu)}
+.dot i{display:block;height:8px;border-radius:4px;background:var(--s2);margin-bottom:6px}.dot.f i{background:var(--tx)}
+.counter{display:flex;align-items:center;gap:14px}
+.counter b{font-size:34px;min-width:36px;text-align:center}
+.btn{background:var(--s2);color:var(--tx);border:1px solid var(--line);border-radius:14px;padding:12px 16px;font:600 14px inherit;font-family:inherit;cursor:pointer}
+.btn:active{transform:scale(.97)}.btn.pri{background:var(--tx);color:#000;border-color:var(--tx)}.btn.sm{padding:8px 12px;font-size:13px;border-radius:12px}.btn.danger{color:var(--bad)}
+.round{width:44px;height:44px;border-radius:50%;padding:0;font-size:20px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--s2);color:var(--mu);font:500 13px inherit;font-family:inherit;cursor:pointer}
+.chip.on{background:var(--tx);color:#000;border-color:var(--tx)}
+.sw{width:44px;height:44px;border-radius:50%;border:2px solid #333;cursor:pointer;padding:0}
+.sw.on{outline:2px solid var(--tx);outline-offset:3px}
+.sw-n{font-size:11px;color:var(--mu);margin-top:6px;min-height:14px}
+.q{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.q button{height:52px;border-radius:14px;border:1px solid var(--line);background:var(--s2);color:var(--mu);font:700 18px inherit;font-family:inherit}
+.q button.on{background:var(--tx);color:#000}
+.qh{display:flex;justify-content:space-between;font-size:11px;color:var(--mu);margin-top:8px}
+input,textarea{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:14px;color:var(--tx);padding:13px 14px;font:15px inherit;font-family:inherit;outline:none}
+input:focus,textarea:focus{border-color:#555}textarea{resize:none;height:76px}
+.fb{border-left:3px solid var(--ok);padding:10px 12px;background:var(--s2);border-radius:4px 14px 14px 4px;margin-top:10px;font-size:13.5px;line-height:1.5;color:#ddd}
+.fb.warn{border-color:var(--warn)}.fb.bad{border-color:var(--bad)}.fb b{display:block;margin-bottom:2px;color:var(--tx)}
+.fine{font-size:11px;color:var(--mu);line-height:1.5;margin-top:10px}
+.item{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}.item:first-child{border-top:0}
+.item .sw{width:28px;height:28px;flex:none;cursor:default}.item small{color:var(--mu);display:block;font-size:12px;margin-top:2px}
+a{color:var(--tx)}
+nav{display:flex;border-top:1px solid var(--line);background:rgba(0,0,0,.92);padding-bottom:env(safe-area-inset-bottom);z-index:2500}
+nav button{flex:1;background:none;border:0;color:var(--mu);padding:10px 0 9px;font:600 11px inherit;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px}
+nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#map{flex:1;background:#000}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(.7) brightness(.85) contrast(.95)}
+.leaflet-container{font-family:inherit}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--s1);color:var(--tx);border:1px solid var(--line);border-radius:18px}
+.leaflet-popup-content{margin:14px 16px;font-size:13px;line-height:1.5}
+.leaflet-container a.leaflet-popup-close-button{color:var(--mu)}
+.pin{background:var(--tx);color:#000;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);display:grid;place-items:center;font-weight:800;font-size:13px;border:2px solid #000;box-shadow:0 0 0 2px var(--tx)}
+.pin b{transform:rotate(45deg)}
+.fabs{position:absolute;right:14px;bottom:16px;z-index:1000;display:flex;flex-direction:column;gap:10px}
+.fabs .btn{box-shadow:0 6px 20px #000a}
+.banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--tx);color:#000;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:700;display:none;white-space:nowrap}
+.sheet{position:fixed;inset:0;z-index:3000;background:#000a;display:none;align-items:flex-end}.sheet.on{display:flex}
+.sheet>div{width:100%;max-height:88dvh;overflow:auto;background:var(--s1);border-top:1px solid var(--line);border-radius:26px 26px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
+.sheet h2{font-size:18px;margin-bottom:14px}.sheet .lbl{margin-top:16px}
+.empty{color:var(--mu);font-size:14px;text-align:center;padding:20px 0}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--tx);color:#000;padding:10px 16px;border-radius:999px;font-weight:700;font-size:13px;z-index:4000;opacity:0;transition:.25s;pointer-events:none}.toast.on{opacity:1}
+</style></head>
+<body>
+<header><h1>Oh! <span>Shit</span></h1><div class="date" id="today"></div></header>
+
+<section class="view on" id="v-log">
+  <div class="card"><div class="row"><div class="grow"><div class="lbl">Streak</div><div class="big" id="streak">0</div><div class="date" id="streakNote"></div></div>
+  <div style="text-align:right"><div class="lbl">Pee today</div><div class="counter"><button class="btn round" id="pm">−</button><b id="pc">0</b><button class="btn round" id="pp">+</button></div></div></div>
+  <div class="dots" id="dots"></div></div>
+
+  <div class="card"><div class="lbl">Log a #2</div>
+    <div class="lbl" style="margin-top:0">Colour</div><div class="chips" id="colors"></div><div class="sw-n" id="cn"></div>
+    <div class="lbl" style="margin-top:20px">Quality</div><div class="q" id="qual"></div><div class="qh"><span>1 · hardest</span><span>5 · smoothest</span></div>
+    <div class="lbl" style="margin-top:20px">Type</div><div class="chips" id="types"></div>
+    <div class="lbl" style="margin-top:20px">Notes</div><textarea id="note" placeholder="Anything you ate, felt, noticed…"></textarea>
+    <div class="row" style="margin-top:14px"><button class="btn grow" id="pinBtn">Pin my location</button><button class="btn pri grow" id="saveBtn">Save entry</button></div>
+    <div class="fine" id="locNote"></div>
+    <div id="fbNow"></div>
+  </div>
+  <div class="card"><div class="lbl">Today</div><div id="todayList"></div></div>
+  <p class="fine" style="padding:0 6px 10px">Oh! Shit gives general info, not medical advice. If something worries you, talk to a doctor.</p>
+</section>
+
+<section class="view" id="v-hist">
+  <div class="card"><div class="lbl">Last 7 days</div><div class="row" id="stats"></div></div>
+  <div class="card"><div class="lbl">History</div><div id="histList"></div></div>
+</section>
+
+<section class="view" id="v-spots">
+  <div class="banner" id="banner">Tap the map to drop a pin</div>
+  <div id="map"></div>
+  <div class="fabs"><button class="btn round" id="locBtn" title="My location">◎</button><button class="btn pri round" id="addBtn" title="Add CR">+</button></div>
+</section>
+
+<nav>
+  <button class="on" data-t="log"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 12l3 3 5-6"/></svg>Log</button>
+  <button data-t="spots"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 005 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>CR Map</button>
+  <button data-t="hist"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>History</button>
+</nav>
+
+<div class="sheet" id="sheet"><div>
+  <h2 id="sh-title">Add CR</h2>
+  <input id="s-name" placeholder="Name (e.g. SM North, 2F)">
+  <div class="lbl">Convenience</div><div class="q" id="s-rate"></div><div class="qh"><span>1 · meh</span><span>5 · heaven</span></div>
+  <div class="lbl">What's there</div><div class="chips" id="s-am"></div>
+  <div class="lbl">Notes</div><textarea id="s-note" placeholder="2nd floor bathroom is better…"></textarea>
+  <div class="row" style="margin-top:16px"><button class="btn" id="s-cancel">Cancel</button><button class="btn danger" id="s-del" style="display:none">Delete</button><button class="btn pri grow" id="s-save">Save</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const KEY='ohshit.v1';let db={logs:[],pee:{},spots:[]};
+try{db=Object.assign(db,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}};
+const dk=d=>{d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),1800)};
+const COLORS=[['brown','Brown','#7a4a2a'],['tan','Light brown','#b08968'],['green','Green','#4f7a3a'],['yellow','Yellow','#d4b02a'],['black','Black','#161616'],['red','Red','#b3261e'],['pale','Pale / clay','#e6e1d3']];
+const TYPES=['Normal','Airy / gassy','Mushy','Watery','Hard / lumpy','Oily / floaty'];
+const cHex=k=>(COLORS.find(c=>c[0]===k)||COLORS[0])[2],cName=k=>(COLORS.find(c=>c[0]===k)||COLORS[0])[1];
+let f={color:'brown',q:3,type:'Normal',loc:null};
+
+/* ---------- feedback ---------- */
+function feedback(e){
+  const o=[],add=(l,t,b)=>o.push({l,t,b});
+  const C={
+    brown:['ok','Typical colour','Brown comes from bile pigments breaking down as food moves through your gut. This is what we want to see.'],
+    tan:['ok','Light brown','Usually fine and diet-related. If stools stay consistently pale, check with a doctor.'],
+    green:['ok','Green','Often from leafy greens, food dyes, or food moving through quickly. Usually harmless; if it persists with diarrhoea or cramps, get it checked.'],
+    yellow:['warn','Yellow','Greasy, smelly, yellow stools can signal fat malabsorption (e.g. pancreas, coeliac disease, giardia). If it lasts more than a few days, see a doctor.'],
+    black:['bad','Black — see a doctor','Black, tarry stool can mean bleeding in the upper digestive tract. Iron pills, bismuth (Pepto) and black licorice can also cause it, but if none apply, or you have dizziness, pain or vomiting, get examined promptly.'],
+    red:['bad','Red — see a doctor','Red can come from haemorrhoids or a fissure, but also bleeding lower in the gut. Beets and red dyes can mimic it. If not explained by food, or it repeats, get examined. Heavy bleeding or dizziness: go to emergency care.'],
+    pale:['bad','Pale / clay — see a doctor','Pale, clay or white stools can mean bile isn\'t reaching the gut (liver, gallbladder or bile-duct issues). If it persists, get it examined.']
+  }[e.color];add(...C);
+  if(e.q<=2)add('warn','Hard stool','Hard stools suggest constipation. Try more fluids, fibre (fruit, veg, whole grains) and movement. Seeing a doctor is worthwhile if it\'s persistent, painful, bloody, or fewer than 3 stools a week.');
+  else if(e.q>=3&&e.q<=4&&e.type==='Normal'&&e.color==='brown')add('ok','Nice one','Soft, easy-to-pass stool is the sweet spot (Bristol types 3–4). Keep doing what you\'re doing.');
+  if(e.q===5&&(e.type==='Watery'||e.type==='Mushy'))add('warn',e.type==='Watery'?'Watery stool':'Very loose stool','WHO defines diarrhoea as 3 or more loose or watery stools in 24 hours. Drink plenty of fluids (oral rehydration solution helps). See a doctor if it lasts over 2 days, or comes with blood, fever or signs of dehydration.');
+  if(e.type==='Airy / gassy')add('ok','Gassy','Gas is normal. Beans, fizzy drinks, swallowed air, and lactose or fructose intolerance are common triggers. If it\'s persistent with pain or bloating, mention it to a doctor.');
+  if(e.type==='Oily / floaty'&&e.color!=='yellow')add('warn','Oily or floating','Occasional floating is usually gas. Oily, hard-to-flush stools that keep happening can point to fat malabsorption. Worth mentioning to a doctor if it persists.');
+  if(e.type==='Hard / lumpy'&&e.q>2)add('warn','Lumpy','Lumpy stools usually mean slightly slow transit. A bit more water and fibre often helps.');
+  return o;
+}
+const fbHTML=a=>a.map(x=>`<div class="fb ${x.l==='ok'?'':x.l}"><b>${x.t}</b>${x.b}</div>`).join('');
+
+/* ---------- log ---------- */
+function streak(){const s=new Set(db.logs.map(l=>l.date));let d=new Date();if(!s.has(dk(d)))d.setDate(d.getDate()-1);let n=0;while(s.has(dk(d))){n++;d.setDate(d.getDate()-1)}return n}
+function renderTop(){
+  const n=streak(),t=dk(),done=db.logs.some(l=>l.date===t);
+  $('#streak').textContent=n;$('#streakNote').textContent=done?(n>1?'days in a row. Keep going.':'Logged today.'):(n?'Log today to keep it alive.':'Log your first one.');
+  $('#pc').textContent=db.pee[t]||0;
+  const s=new Set(db.logs.map(l=>l.date));let h='';
+  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);h+=`<div class="dot ${s.has(dk(d))?'f':''}"><i></i>${'SMTWTFS'[d.getDay()]}</div>`}
+  $('#dots').innerHTML=h;
+}
+const entryRow=(l,del)=>`<div class="item"><div class="sw" style="background:${cHex(l.color)}"></div><div class="grow"><b>${cName(l.color)} · ${l.q}/5</b><small>${l.type} · ${new Date(l.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}${l.note?' · '+esc(l.note):''}${l.loc?` · <a href="https://www.openstreetmap.org/?mlat=${l.loc.lat}&mlon=${l.loc.lng}#map=18/${l.loc.lat}/${l.loc.lng}" target="_blank" rel="noopener">map</a>`:''}</small></div>${del?`<button class="btn sm danger" onclick="delLog('${l.id}')">✕</button>`:''}</div>`;
+function renderToday(){const L=db.logs.filter(l=>l.date===dk()).reverse();$('#todayList').innerHTML=L.length?L.map(l=>entryRow(l,1)).join(''):'<div class="empty">Nothing logged yet today.</div>'}
+function delLog(id){db.logs=db.logs.filter(l=>l.id!==id);save();renderAll()}
+function buildForm(){
+  $('#colors').innerHTML=COLORS.map(c=>`<button class="sw ${c[0]===f.color?'on':''}" data-c="${c[0]}" style="background:${c[2]}" aria-label="${c[1]}"></button>`).join('');
+  $('#cn').textContent=cName(f.color);
+  $('#qual').innerHTML=[1,2,3,4,5].map(n=>`<button class="${n===f.q?'on':''}" data-q="${n}">${n}</button>`).join('');
+  $('#types').innerHTML=TYPES.map(t=>`<button class="chip ${t===f.type?'on':''}" data-t="${t}">${t}</button>`).join('');
+}
+$('#colors').onclick=e=>{const c=e.target.dataset.c;if(c){f.color=c;buildForm()}};
+$('#qual').onclick=e=>{const q=e.target.dataset.q;if(q){f.q=+q;buildForm()}};
+$('#types').onclick=e=>{const t=e.target.dataset.t;if(t){f.type=t;buildForm()}};
+$('#pinBtn').onclick=()=>{
+  if(!navigator.geolocation)return toast('Location not supported');
+  $('#locNote').textContent='Finding you…';
+  navigator.geolocation.getCurrentPosition(p=>{f.loc={lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5)};
+    const sp=nearest(f.loc);$('#locNote').textContent='Pinned'+(sp?' · near "'+sp.name+'"':'')+` (${f.loc.lat}, ${f.loc.lng})`;$('#pinBtn').textContent='Pinned ✓'},
+    ()=>{$('#locNote').textContent='Could not get location. Check permissions.'},{enableHighAccuracy:true,timeout:10000});
+};
+function nearest(p){let b=null,bd=60;db.spots.forEach(s=>{const d=map?map.distance([p.lat,p.lng],[s.lat,s.lng]):L.latLng(p.lat,p.lng).distanceTo([s.lat,s.lng]);if(d<bd){bd=d;b=s}});return b}
+$('#saveBtn').onclick=()=>{
+  const e={id:'l'+Date.now(),date:dk(),ts:Date.now(),color:f.color,q:f.q,type:f.type,note:$('#note').value.trim(),loc:f.loc};
+  db.logs.push(e);save();$('#fbNow').innerHTML=fbHTML(feedback(e));
+  $('#note').value='';f.loc=null;$('#locNote').textContent='';$('#pinBtn').textContent='Pin my location';
+  renderAll();toast('Logged. Streak '+streak());
+};
+$('#pp').onclick=()=>{const t=dk();db.pee[t]=(db.pee[t]||0)+1;save();renderTop()};
+$('#pm').onclick=()=>{const t=dk();db.pee[t]=Math.max(0,(db.pee[t]||0)-1);save();renderTop()};
+
+/* ---------- history ---------- */
+function renderHist(){
+  const from=dk(new Date(Date.now()-6*864e5)),w=db.logs.filter(l=>l.date>=from);
+  const avg=w.length?(w.reduce((a,l)=>a+l.q,0)/w.length).toFixed(1):'–';
+  const pee=Object.entries(db.pee).filter(([d])=>d>=from).reduce((a,[,n])=>a+n,0);
+  $('#stats').innerHTML=[['#2s',w.length],['Avg quality',avg],['Pees',pee]].map(([k,v])=>`<div class="grow"><div class="big" style="font-size:34px">${v}</div><div class="date">${k}</div></div>`).join('');
+  const by={};db.logs.slice().reverse().forEach(l=>(by[l.date]=by[l.date]||[]).push(l));
+  const keys=Object.keys(by);
+  $('#histList').innerHTML=keys.length?keys.map(k=>`<div class="lbl" style="margin:16px 0 0">${new Date(k+'T00:00').toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'})}</div>`+by[k].map(l=>entryRow(l,1)).join('')).join(''):'<div class="empty">No entries yet.</div>';
+}
+
+/* ---------- CR map ---------- */
+const AM=['Bidet','Tissue','Water','Soap','Hand dryer','Free','Clean','Private stall','PWD accessible','Needs purchase'];
+let map,layer,adding=false,cur=null;
+function initMap(){
+  if(map)return;
+  map=L.map('map',{zoomControl:false,attributionControl:true}).setView([14.676,121.0437],15);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  layer=L.layerGroup().addTo(map);
+  map.on('click',e=>{if(adding){setAdding(false);openSheet(null,e.latlng)}});
+  drawSpots();locate(true);
+}
+function drawSpots(){
+  layer.clearLayers();
+  db.spots.forEach(s=>{
+    const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:30px;height:30px"><b>${s.rating}</b></div>`,iconSize:[30,30],iconAnchor:[15,30]})});
+    m.bindPopup(`<b style="font-size:15px">${esc(s.name)}</b><br>${'★'.repeat(s.rating)}${'☆'.repeat(5-s.rating)}<div class="chips" style="gap:5px;margin:8px 0">${s.am.map(a=>`<span class="chip on" style="padding:3px 9px;font-size:11px">${a}</span>`).join('')}</div>${s.note?`<div style="color:#ccc">${esc(s.note)}</div>`:''}<div class="row" style="margin-top:10px"><button class="btn sm" onclick="openSheet('${s.id}')">Edit</button><a class="btn sm" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}">Directions</a></div>`).addTo(layer);
+  });
+}
+function locate(quiet){
+  navigator.geolocation&&navigator.geolocation.getCurrentPosition(p=>{map.setView([p.coords.latitude,p.coords.longitude],17);L.circleMarker([p.coords.latitude,p.coords.longitude],{radius:7,color:'#fff',fillColor:'#4da3ff',fillOpacity:1,weight:2}).addTo(map)},()=>{if(!quiet)toast('Location unavailable')},{timeout:8000});
+}
+function setAdding(v){adding=v;$('#banner').style.display=v?'block':'none';$('#addBtn').textContent=v?'×':'+'}
+$('#locBtn').onclick=()=>locate();
+$('#addBtn').onclick=()=>setAdding(!adding);
+$('#s-rate').innerHTML=[1,2,3,4,5].map(n=>`<button data-r="${n}">${n}</button>`).join('');
+$('#s-am').innerHTML=AM.map(a=>`<button class="chip" data-a="${a}">${a}</button>`).join('');
+$('#s-rate').onclick=e=>{const r=e.target.dataset.r;if(r){cur.rating=+r;paintSheet()}};
+$('#s-am').onclick=e=>{const a=e.target.dataset.a;if(a){const i=cur.am.indexOf(a);i<0?cur.am.push(a):cur.am.splice(i,1);paintSheet()}};
+function paintSheet(){$$('#s-rate button').forEach(b=>b.classList.toggle('on',+b.dataset.r===cur.rating));$$('#s-am .chip').forEach(b=>b.classList.toggle('on',cur.am.includes(b.dataset.a)))}
+function openSheet(id,ll){
+  map.closePopup();
+  cur=id?JSON.parse(JSON.stringify(db.spots.find(s=>s.id===id))):{id:'s'+Date.now(),name:'',rating:3,am:[],note:'',lat:ll.lat,lng:ll.lng};
+  $('#sh-title').textContent=id?'Edit CR':'Add CR';$('#s-name').value=cur.name;$('#s-note').value=cur.note;
+  $('#s-del').style.display=id?'':'none';paintSheet();$('#sheet').classList.add('on');
+}
+const closeSheet=()=>$('#sheet').classList.remove('on');
+$('#s-cancel').onclick=closeSheet;
+$('#s-save').onclick=()=>{
+  cur.name=$('#s-name').value.trim()||'Unnamed CR';cur.note=$('#s-note').value.trim();
+  const i=db.spots.findIndex(s=>s.id===cur.id);i<0?db.spots.push(cur):db.spots[i]=cur;
+  save();drawSpots();closeSheet();toast('CR saved');
+};
+$('#s-del').onclick=()=>{db.spots=db.spots.filter(s=>s.id!==cur.id);save();drawSpots();closeSheet()};
+
+/* ---------- nav ---------- */
+$$('nav button').forEach(b=>b.onclick=()=>{
+  $$('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  $$('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+b.dataset.t));
+  if(b.dataset.t==='spots'){initMap();setTimeout(()=>map.invalidateSize(),60)}
+  if(b.dataset.t==='hist')renderHist();
+});
+function renderAll(){renderTop();renderToday();renderHist()}
+$('#today').textContent=new Date().toLocaleDateString([],{weekday:'long',month:'short',day:'numeric'});
+buildForm();renderAll();
+</script>
+</body></html>
