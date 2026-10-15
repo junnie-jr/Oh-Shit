@@ -119,6 +119,8 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
 </div></div>
 <div class="sheet" id="acctSheet"><div><h2 id="a-name">Account</h2><p class="date" id="a-sub" style="margin-bottom:16px;line-height:1.5"></p>
   <button class="btn pri" id="a-link" style="width:100%;margin-bottom:10px">Sign in with Google to keep my data</button>
+  <div class="row" style="margin-bottom:10px"><button class="btn grow" id="a-exp">Export backup</button><button class="btn grow" id="a-imp">Import backup</button></div>
+  <input type="file" id="a-file" accept=".json,application/json" style="display:none">
   <div class="row"><button class="btn grow" id="a-out">Sign out</button><button class="btn grow" id="a-close">Close</button></div></div></div>
 <div id="auth"><h1 style="font-size:44px">Oh! <span>Shit</span></h1><p class="date" style="margin:10px 0 36px">Track it. Find a throne.</p>
   <button class="btn pri" id="gBtn" style="width:100%;max-width:320px;padding:15px">Continue with Google</button>
@@ -335,6 +337,26 @@ $('#a-link').onclick=async()=>{const r=await sb.auth.linkIdentity({provider:'goo
 $('#a-out').onclick=async()=>{if(user.is_anonymous&&!confirm('Guest data is lost if you sign out. Continue?'))return;await sb.auth.signOut();$('#acctSheet').classList.remove('on')};
 $('#gBtn').onclick=async()=>{const r=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:redirect}});fail(r,'Google sign-in failed')};
 $('#guestBtn').onclick=async()=>{fail(await sb.auth.signInAnonymously(),'Guest sign-in failed')};
+$('#a-exp').onclick=()=>{
+  const mine=db.spots.filter(x=>user&&x.created_by===user.id);
+  const blob=new Blob([JSON.stringify({app:'oh-shit',v:1,exported:new Date().toISOString(),logs:db.logs,pee:db.pee,spots:mine},null,1)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='oh-shit-backup-'+dk()+'.json';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  toast('Backup saved to downloads');
+};
+$('#a-imp').onclick=()=>$('#a-file').click();
+$('#a-file').onchange=async ev=>{
+  const file=ev.target.files[0];ev.target.value='';if(!file)return;
+  let d;try{d=JSON.parse(await file.text());if(d.app!=='oh-shit')throw 0}catch(e){return toast('Not a valid Oh! Shit backup')}
+  const L=(d.logs||[]).map(x=>({...x,id:x.id||crypto.randomUUID()})),P=Object.entries(d.pee||{}),S=canAdd()?(d.spots||[]):[];
+  if(!confirm(`Import ${L.length} entries${S.length?' and '+S.length+' CRs':''}? Entries already in your account are updated, not duplicated.`))return;
+  let bad=false;
+  if(L.length)bad=fail(await sb.from('logs').upsert(L.map(logOut),{onConflict:'id'}),'Some entries failed')||bad;
+  if(P.length)bad=fail(await sb.from('pee').upsert(P.map(([k,c])=>({user_id:user.id,day:k,count:c})),{onConflict:'user_id,day'}),'Some counts failed')||bad;
+  if(S.length)bad=fail(await sb.from('spots').upsert(S.map(spotOut),{onConflict:'id'}),'Some CRs failed')||bad;
+  await Promise.all([pullMine(),pullSpots()]);renderAll();if(map)drawSpots();
+  if(!bad)toast('Backup imported');
+};
 function offerMigrate(){
   if(!localDB||localStorage.getItem('ohshit.declined'))return;
   const L=localDB.logs||[],P=Object.entries(localDB.pee||{}),S=localDB.spots||[],cs=canAdd();
