@@ -59,6 +59,14 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
 .leaflet-container a.leaflet-popup-close-button{color:var(--mu)}
 .pin{background:var(--tx);color:#000;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);display:grid;place-items:center;font-weight:800;font-size:13px;border:2px solid #000;box-shadow:0 3px 10px #000c}
 .pin b{transform:rotate(45deg)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal b{font-size:10px;color:var(--mu);text-align:center;font-weight:600;padding-bottom:2px}
+.cal button{aspect-ratio:1;border-radius:50%;border:1.5px solid transparent;background:var(--s2);color:var(--mu);font:600 13px inherit;font-family:inherit;position:relative;padding:0;cursor:pointer}
+.cal .go{background:var(--tx);color:#000}
+.cal .fa{background:transparent;border:1.5px dashed #888;color:var(--tx)}
+.cal .fut{opacity:.3}.cal .tod{outline:1.5px solid var(--tx);outline-offset:2px}.cal .sel{box-shadow:0 0 0 3px #666}.cal .blank{visibility:hidden}
+.cal span{position:absolute;top:-4px;right:-4px;background:#000;color:var(--tx);border:1px solid #444;border-radius:999px;font-size:9px;min-width:15px;height:15px;line-height:13px}
+.lg{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-2px;margin-right:5px}
 .legend{position:absolute;left:12px;bottom:16px;z-index:1000;display:flex;gap:6px;align-items:center;background:rgba(13,13,13,.92);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:11px;color:var(--mu);font-weight:600}.legend i{width:14px;height:14px;border-radius:50%;display:inline-block}
 .fabs{position:absolute;right:14px;bottom:40px;z-index:1000;display:flex;flex-direction:column;gap:10px}
 .fabs .btn{box-shadow:0 6px 20px #000a}
@@ -95,7 +103,10 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
 
 <section class="view" id="v-hist">
   <div class="card"><div class="lbl">Summary</div><div class="chips" id="rng" style="margin-bottom:16px"></div><div class="row" id="stats"></div><div id="sumx"></div></div>
-  <div class="card"><div class="lbl">History</div><div id="histList"></div></div>
+  <div class="card"><div class="lbl">Busiest day · all time</div><div id="topDay"></div></div>
+  <div class="card"><div class="row" style="margin-bottom:14px"><button class="btn sm" id="calPrev">‹</button><div class="grow" id="calTitle" style="text-align:center;font-weight:700"></div><button class="btn sm" id="calNext">›</button></div>
+    <div class="cal" id="cal"></div><div class="fine" id="calLeg" style="margin-top:14px"></div><div id="dayList"></div></div>
+  <button class="btn" id="allBtn" style="width:100%;padding:15px">View all logs</button>
 </section>
 
 <section class="view" id="v-spots">
@@ -125,6 +136,7 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
   <div class="row" style="margin-bottom:10px"><button class="btn grow" id="a-exp">Export backup</button><button class="btn grow" id="a-imp">Import backup</button></div>
   <input type="file" id="a-file" accept=".json,application/json" style="display:none">
   <div class="row"><button class="btn grow" id="a-out">Sign out</button><button class="btn grow" id="a-close">Close</button></div></div></div>
+<div class="sheet" id="histSheet"><div><div class="row" style="margin-bottom:6px"><h2 class="grow" style="margin:0">All logs</h2><button class="btn sm" id="h-close">Close</button></div><div id="histList"></div></div></div>
 <div id="auth"><h1 style="font-size:44px">Oh! <span>Shit</span></h1><p class="date" style="margin:10px 0 36px">Track it. Find a throne.</p>
   <button class="btn pri" id="gBtn" style="width:100%;max-width:320px;padding:15px">Continue with Google</button>
   <button class="btn" id="guestBtn" style="width:100%;max-width:320px;padding:15px;margin-top:10px">Continue as guest</button>
@@ -233,10 +245,38 @@ $('#pp').onclick=()=>{const t=dk();db.pee[t]=(db.pee[t]||0)+1;savePee(t);renderT
 $('#pm').onclick=()=>{const t=dk();db.pee[t]=Math.max(0,(db.pee[t]||0)-1);savePee(t);renderTop()};
 
 /* ---------- history ---------- */
+let calM=new Date();calM.setDate(1);let selDay=null;
+const longDay=k=>new Date(k+'T00:00').toLocaleDateString([],{weekday:'long',month:'short',day:'numeric',year:'numeric'});
+function renderBusy(){
+  const c={};db.logs.filter(l=>!isFA(l)).forEach(l=>c[l.date]=(c[l.date]||0)+1);
+  const k=Object.keys(c).sort((a,b)=>c[b]-c[a]||(a<b?1:-1))[0];
+  $('#topDay').innerHTML=k?`<div class="row" style="gap:16px"><div class="big" style="font-size:52px">${c[k]}</div><div><b>#2${c[k]>1?'s':''} in one day</b><div class="date">${longDay(k)}</div></div></div>`:'<div class="empty">No #2s logged yet.</div>';
+}
+function renderCal(){
+  const y=calM.getFullYear(),m=calM.getMonth(),first=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate(),today=dk();
+  $('#calTitle').textContent=calM.toLocaleDateString([],{month:'long',year:'numeric'});
+  const poo={},fa={};db.logs.forEach(l=>{const o=isFA(l)?fa:poo;o[l.date]=(o[l.date]||0)+1});
+  let h='SMTWTFS'.split('').map(c=>`<b>${c}</b>`).join('');
+  for(let i=0;i<first;i++)h+='<button class="blank" disabled></button>';
+  for(let d=1;d<=dim;d++){
+    const k=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    h+=`<button class="${poo[k]?'go':fa[k]?'fa':''} ${k>today?'fut':''} ${k===today?'tod':''} ${k===selDay?'sel':''}" data-k="${k}">${d}${poo[k]>1?`<span>${poo[k]}</span>`:''}</button>`;
+  }
+  $('#cal').innerHTML=h;
+  $('#calLeg').innerHTML='<span class="lg" style="background:var(--tx)"></span>Went &nbsp; <span class="lg" style="border:1.5px dashed #888"></span>False alarm &nbsp; <span class="lg" style="background:var(--s2)"></span>Did not go';
+  const rows=selDay?db.logs.filter(l=>l.date===selDay).reverse().map(l=>entryRow(l,1)).join(''):'';
+  $('#dayList').innerHTML=selDay?`<div class="lbl" style="margin:18px 0 4px">${longDay(selDay)}</div>`+(rows||'<div class="empty">Nothing logged this day.</div>'):'';
+}
+$('#cal').onclick=e=>{const k=e.target.closest('button')&&e.target.closest('button').dataset.k;if(k){selDay=selDay===k?null:k;renderCal()}};
+$('#calPrev').onclick=()=>{calM.setMonth(calM.getMonth()-1);renderCal()};
+$('#calNext').onclick=()=>{const n=new Date();if(calM.getFullYear()*12+calM.getMonth()<n.getFullYear()*12+n.getMonth()){calM.setMonth(calM.getMonth()+1);renderCal()}};
+$('#allBtn').onclick=()=>$('#histSheet').classList.add('on');
+$('#h-close').onclick=()=>$('#histSheet').classList.remove('on');
 const RNG=[[1,'24h'],[3,'3 days'],[7,'7 days'],[15,'15 days'],[30,'30 days']];
 let range=7;try{range=+localStorage.getItem('ohshit.range')||7}catch(e){}
 $('#rng').onclick=e=>{const d=e.target.dataset.d;if(d){range=+d;try{localStorage.setItem('ohshit.range',d)}catch(_){}renderHist()}};
 function renderHist(){
+  renderBusy();renderCal();
   $('#rng').innerHTML=RNG.map(([d,t])=>`<button class="chip ${d===range?'on':''}" data-d="${d}">${t}</button>`).join('');
   const since=Date.now()-range*864e5,from=dk(new Date(Date.now()-(range-1)*864e5));
   const w=db.logs.filter(l=>l.ts>=since),poo=w.filter(l=>!isFA(l)),fa=w.filter(isFA);
