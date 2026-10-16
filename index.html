@@ -19,6 +19,12 @@ h1{font-size:22px;font-weight:800;letter-spacing:-.03em}h1 span{color:var(--mu);
 .view{display:none;flex:1;overflow:auto;padding:8px 16px 24px}.view.on{display:block}
 #v-spots.on{display:flex;flex-direction:column;padding:0;position:relative}
 .card{background:var(--s1);border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:12px}
+.card.hl{background:linear-gradient(180deg,#151515,#0b0b0b);border-color:#303030}
+.ttl{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--tx);margin-bottom:16px}
+.ttl::before{content:"";width:4px;height:18px;border-radius:2px;background:var(--tx)}
+.ttl small{margin-left:auto;color:var(--mu);font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:none}
+.slab{font-size:12px;font-weight:600;color:#cfcfcf;margin-top:6px}
+.sx{font-size:13px;line-height:1.5;color:#d6d6d6;margin-top:8px}
 .lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mu);margin-bottom:12px;font-weight:600}
 .row{display:flex;gap:10px;align-items:center}.grow{flex:1}
 .big{font-size:64px;font-weight:800;letter-spacing:-.05em;line-height:1}
@@ -102,8 +108,8 @@ nav button.on{color:var(--tx)}nav svg{width:24px;height:24px;stroke:currentColor
 </section>
 
 <section class="view" id="v-hist">
-  <div class="card"><div class="lbl">Summary</div><div class="chips" id="rng" style="margin-bottom:16px"></div><div class="row" id="stats"></div><div id="sumx"></div></div>
-  <div class="card"><div class="lbl">Busiest day · all time</div><div id="topDay"></div></div>
+  <div class="card hl"><div class="ttl">Summary</div><div class="chips" id="rng" style="margin-bottom:16px"></div><div class="row" id="stats"></div><div id="sumx"></div></div>
+  <div class="card hl"><div class="ttl">Busiest day <small>all time</small></div><div id="topDay"></div></div>
   <div class="card"><div class="row" style="margin-bottom:14px"><button class="btn sm" id="calPrev">‹</button><div class="grow" id="calTitle" style="text-align:center;font-weight:700"></div><button class="btn sm" id="calNext">›</button></div>
     <div class="cal" id="cal"></div><div class="fine" id="calLeg" style="margin-top:14px"></div><div id="dayList"></div></div>
   <button class="btn" id="allBtn" style="width:100%;padding:15px">View all logs</button>
@@ -250,7 +256,7 @@ const longDay=k=>new Date(k+'T00:00').toLocaleDateString([],{weekday:'long',mont
 function renderBusy(){
   const c={};db.logs.filter(l=>!isFA(l)).forEach(l=>c[l.date]=(c[l.date]||0)+1);
   const k=Object.keys(c).sort((a,b)=>c[b]-c[a]||(a<b?1:-1))[0];
-  $('#topDay').innerHTML=k?`<div class="row" style="gap:16px"><div class="big" style="font-size:52px">${c[k]}</div><div><b>#2${c[k]>1?'s':''} in one day</b><div class="date">${longDay(k)}</div></div></div>`:'<div class="empty">No #2s logged yet.</div>';
+  $('#topDay').innerHTML=k?`<div class="row" style="gap:16px"><div class="big" style="font-size:68px">${c[k]}</div><div><b style="font-size:18px">#2${c[k]>1?'s':''} in one day</b><div class="slab" style="font-size:14px">${longDay(k)}</div></div></div>`:'<div class="empty">No #2s logged yet.</div>';
 }
 function renderCal(){
   const y=calM.getFullYear(),m=calM.getMonth(),first=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate(),today=dk();
@@ -282,12 +288,12 @@ function renderHist(){
   const w=db.logs.filter(l=>l.ts>=since),poo=w.filter(l=>!isFA(l)),fa=w.filter(isFA);
   const avg=poo.length?(poo.reduce((a,l)=>a+l.q,0)/poo.length).toFixed(1):'–';
   const pee=Object.entries(db.pee).filter(([d])=>d>=from).reduce((a,[,n])=>a+n,0);
-  $('#stats').innerHTML=[['#2s',poo.length],['Avg quality',avg],['Pees',pee],['False alarms',fa.length]].map(([k,v])=>`<div class="grow"><div class="big" style="font-size:34px">${v}</div><div class="date">${k}</div></div>`).join('');
+  $('#stats').innerHTML=[['#2s',poo.length],['Avg quality',avg],['Pees',pee],['False alarms',fa.length]].map(([k,v])=>`<div class="grow"><div class="big" style="font-size:42px">${v}</div><div class="slab">${k}</div></div>`).join('');
   const top=a=>{const c={};a.forEach(x=>c[x]=(c[x]||0)+1);return Object.keys(c).sort((x,y)=>c[y]-c[x])[0]};
   let h='';
-  if(poo.length)h+=`<div class="fine" style="margin-top:14px">Most common: ${cName(top(poo.map(l=>l.color)))} · ${esc(top(poo.map(l=>l.type)))} · about ${(poo.length/range).toFixed(1)} per day</div>`;
-  if(fa.length)h+=`<div class="fine">False alarms: ${fa.length}, averaging ${(fa.reduce((a,l)=>a+l.q,0)/fa.length).toFixed(1)}/5 on the "how false" scale</div>`;
-  if(!w.length&&!pee)h+='<div class="fine" style="margin-top:14px">Nothing logged in this period.</div>';
+  if(poo.length)h+=`<div class="sx" style="margin-top:16px">Most common: ${cName(top(poo.map(l=>l.color)))} · ${esc(top(poo.map(l=>l.type)))} · about ${(poo.length/range).toFixed(1)} per day</div>`;
+  if(fa.length)h+=`<div class="sx">False alarms: ${fa.length}, averaging ${(fa.reduce((a,l)=>a+l.q,0)/fa.length).toFixed(1)}/5 on the "how false" scale</div>`;
+  if(!w.length&&!pee)h+='<div class="sx" style="margin-top:16px">Nothing logged in this period.</div>';
   const n=[],bad=poo.filter(l=>['red','black','pale'].includes(l.color)).length;
   if(bad)n.push({l:'bad',t:'Concerning colours',b:`${bad} stool${bad>1?'s':''} in this period ${bad>1?'were':'was'} red, black or pale. If food, iron or bismuth doesn't explain it, please get checked.`});
   if(poo.length>=2&&+avg<=2.4)n.push({l:'warn',t:'Leaning hard',b:'Mostly hard stools in this period. More fluids, fibre and movement usually help.'});
